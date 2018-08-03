@@ -29,14 +29,8 @@ int main(){
     new TMVA::Reader("Color:!Silent")
   };
 
-  TFile* out_root[5] = {
-    new TFile("TrainingResults_Grad_pt50.root", "RECREATE"), 
-    new TFile("TrainingResults_Grad_pt100.root", "RECREATE"), 
-    new TFile("TrainingResults_Grad_pt150.root", "RECREATE"), 
-    new TFile("TrainingResults_Grad_pt200.root", "RECREATE"), 
-    new TFile("TrainingResults_Grad_pt200p.root", "RECREATE") 
-  };
-
+  cout<<"Made Readers"<<endl; 
+  
   vector<TString> num; 
   num.emplace_back("50");
   num.emplace_back("100");
@@ -50,6 +44,11 @@ int main(){
   Float_t y1pt, y2pt, yypt, jetpt; 
 
   for (int i=0; i<5; ++i){
+    TString outname = "TrainingResult16_pt" + num[i] + ".root";
+    TFile* out_root = new TFile(outname, "RECREATE"); 
+    
+    cout<<""<<endl; 
+    cout<<"Made outfile"<<endl; 
 
     reader[i]->AddVariable("s", &s); 
     reader[i]->AddVariable("yydr", &yydr); 
@@ -67,13 +66,14 @@ int main(){
     reader[i]->AddVariable("y2pt", &y2pt);
     reader[i]->AddVariable("yyE", &yyE); 
     reader[i]->AddVariable("yypt", &yypt); 
-    
+    reader[i]->AddVariable("jetE", &jetE); 
+
     cout<<"Reader Variables Added"<<endl;
       
     //=========================================================
   
     //Add method to the reader
-    TString w = "$TMPDIR/TMVAClassification_BDT_pt" + num[i] ".weights.xml"; 
+    TString w = "/home/voetberg/voetberg/bdt_tmva_outputs/data_pt" + num[i] + "/weights/TMVAClassification_BDT_" + num[i] + ".weights.xml"; 
     reader[i]->BookMVA("method", w); 
   
     cout<<"Method Added to the Reader"<<endl; 
@@ -86,14 +86,13 @@ int main(){
     TH1D* h_res_d = new TH1D("Res_Data", "Res_Data", 200, -1., 1.); 
   
     //Read data 
-    TFile* in_s = new TFile::Open("$TMPDIR/data16_pt" + num[i] + "_sig.root"); 
-    TFile* in_b = new TFile::Open("$TMPDIR/data16_pt" + num[i] + "_back.root"); 
-    TFile* in2 = new TFile::Open("$TMPDIR/data_17feat_pt" + num[i] + "_reader.root"); 
+    TFile* in_s = TFile::Open("/msu/data/t3work9/voetberg/tmva_input/16vari/data16_pt" + num[i] + "_sig.root"); 
+    TFile* in_b = TFile::Open("/msu/data/t3work9/voetberg/tmva_input/16vari/data16_pt" + num[i] + "_back.root");    TFile* in2 = TFile::Open("/msu/data/t3work9/voetberg/tmva_input/data16_pt" + num[i] + "_reader.root"); 
   
     cout<<"Opened read data"<<endl; 
   
     //===========================================================
-  
+ 
     TTree* sig = (TTree*)in_s->Get("sigTest"); 
     TTree* bg = (TTree*)in_b->Get("bgTest"); 
     TTree* res_s = (TTree*)in2->Get("sig"); 
@@ -221,18 +220,18 @@ int main(){
   
     //=============================================================
   
-    for (long i=0; i<sig_entries; ++i){
-      sig->GetEntry(i); 
-      h_sig->Fill(reader->EvaluateMVA("method"));    
+    for (long j=0; j<sig_entries; ++j){
+      sig->GetEntry(j); 
+      h_sig->Fill(reader[i]->EvaluateMVA("method"));    
     }
   
     cout<<"Filled Signal Histogram"<<endl; 
     
     //=============================================================
     
-    for (long i=0; i<bg_entries; ++i){
-      bg->GetEntry(i); 
-      h_bg->Fill(reader->EvaluateMVA("method")); 
+    for (long j=0; j<bg_entries; ++j){
+      bg->GetEntry(j); 
+      h_bg->Fill(reader[i]->EvaluateMVA("method")); 
     }
   
     cout<<"Filled Background Histogram"<<endl; 
@@ -240,13 +239,13 @@ int main(){
     //==============================================================
     
     float sig_n_s=0, bg_n_s=0;
-    for (long i=0; i<res_s_entries; ++i){
-      res_s->GetEntry(i); 
+    for (long j=0; j<res_s_entries; ++j){
+      res_s->GetEntry(j); 
       
-      float result = reader->EvaluateMVA("method"); 
+      float result = reader[i]->EvaluateMVA("method"); 
       h_res_s->Fill(result);
   
-      if (result>-.05){
+      if (result>0){
         sig_n_s+=1; 
       }
       else{
@@ -261,13 +260,13 @@ int main(){
     //================================================================
   
     float sig_n_b=0, bg_n_b=0;
-    for (long i=0; i<res_b_entries; ++i){
-      res_b->GetEntry(i); 
+    for (long j=0; j<res_b_entries; ++j){
+      res_b->GetEntry(j); 
       
-      float result = reader->EvaluateMVA("method"); 
+      float result = reader[i]->EvaluateMVA("method"); 
       h_res_b->Fill(result);
   
-      if (result>-.05){
+      if (result>0){
         sig_n_b+=1; 
       }
       else{
@@ -282,13 +281,13 @@ int main(){
     //================================================================
   
     float sig_n_d=0, bg_n_d=0;
-    for (long i=0; i<res_d_entries; ++i){
-      res_d->GetEntry(i); 
+    for (long j=0; j<res_d_entries; ++j){
+      res_d->GetEntry(j); 
       
-      float result = reader->EvaluateMVA("method"); 
+      float result = reader[i]->EvaluateMVA("method"); 
       h_res_d->Fill(result);
   
-      if (result>-.05){
+      if (result>0){
         sig_n_d+=1; 
       }
       else{
@@ -302,8 +301,8 @@ int main(){
     
     //==================================================================
   
-    out_root[i]->Write(); 
-    out_root[i]->Close();
+    out_root->Write(); 
+    out_root->Close();
   
     delete reader[i]; 
 
